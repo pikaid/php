@@ -11,10 +11,10 @@ use RuntimeException;
 
 class Pikaid
 {
-  public const LENGTH       = 26;
-  private const TS_LENGTH   = 7;
+  public const LENGTH = 26;
+  private const TS_LENGTH = 7;
   private const RAND_LENGTH = 19;
-  private const RAND_BYTES  = 12;
+  private const RAND_BYTES = 12;
 
   /**
    * Generate a new pikaid (26 lowercase Base36 chars).
@@ -23,13 +23,13 @@ class Pikaid
   {
     // 1) Timestamp part (seconds since epoch → Base36)
     $seconds = time();
-    $ts36    = base_convert((string) $seconds, 10, 36);
-    $ts36    = str_pad($ts36, self::TS_LENGTH, '0', STR_PAD_LEFT);
+    $ts36 = base_convert((string) $seconds, 10, 36);
+    $ts36 = str_pad($ts36, self::TS_LENGTH, '0', STR_PAD_LEFT);
 
     // 2) Randomness part (96 bits → Base36)
-    $bytes   = random_bytes(self::RAND_BYTES);
-    $rand36  = self::toBase36($bytes);
-    $rand36  = str_pad($rand36, self::RAND_LENGTH, '0', STR_PAD_LEFT);
+    $bytes = random_bytes(self::RAND_BYTES);
+    $rand36 = self::toBase36($bytes);
+    $rand36 = str_pad($rand36, self::RAND_LENGTH, '0', STR_PAD_LEFT);
 
     return $ts36 . $rand36;
   }
@@ -55,20 +55,20 @@ class Pikaid
       throw new InvalidArgumentException('Invalid pikaid format');
     }
 
-    $tsPart   = substr($id, 0, self::TS_LENGTH);
+    $tsPart = substr($id, 0, self::TS_LENGTH);
     $randPart = substr($id, self::TS_LENGTH);
 
     // --- Decode timestamp (Base36 → seconds → DateTimeImmutable) ---
     $seconds = (int) base_convert($tsPart, 36, 10);
-    $date    = new DateTimeImmutable("@{$seconds}");
-    $date    = $date->setTimezone(new DateTimeZone('UTC'));
+    $date = new DateTimeImmutable("@{$seconds}");
+    $date = $date->setTimezone(new DateTimeZone('UTC'));
 
     // --- Decode randomness to hex string ---
     $bytes = self::fromBase36($randPart);
-    $hex   = bin2hex($bytes);
+    $hex = bin2hex($bytes);
 
     return [
-      'timestamp'  => $date,
+      'timestamp' => $date,
       'randomness' => $hex,
     ];
   }
@@ -98,9 +98,9 @@ class Pikaid
 
     $out = '';
     while (bccomp($dec, '0', 0) === 1) {
-      $mod  = bcmod($dec, '36');
-      $out  = self::digit((int) $mod) . $out;
-      $dec  = bcdiv($dec, '36', 0);
+      $mod = bcmod($dec, '36');
+      $out = self::digit((int) $mod) . $out;
+      $dec = bcdiv($dec, '36', 0);
     }
 
     return $out;
@@ -112,7 +112,7 @@ class Pikaid
   private static function fromBase36(string $str): string
   {
     if (extension_loaded('gmp')) {
-      $num   = gmp_init($str, 36);
+      $num = gmp_init($str, 36);
       $bytes = gmp_export($num, 1, GMP_BIG_ENDIAN);
       return str_pad($bytes, self::RAND_BYTES, "\0", STR_PAD_LEFT);
     }
