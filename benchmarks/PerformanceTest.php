@@ -7,37 +7,64 @@ use Ramsey\Uuid\Uuid;
 use Ulid\Ulid;
 use Hidehalo\Nanoid\Client;
 
-function bench(callable $fn, int $iterations = 10000): float
+function bench(callable $fn, int $iters = 100000): float
 {
   $start = microtime(true);
-  for ($i = 0; $i < $iterations; $i++) {
+  for ($i = 0; $i < $iters; $i++) {
     $fn();
   }
-  return (microtime(true) - $start) * 1000; // ms
+  return (microtime(true) - $start) * 1000; // total ms
 }
 
-$iterations = 100000;
+$iters = 100000;
+$results = [];
 
-echo "Benchmarking {$iterations} iterations:\n\n";
+// Pikaid
+$time = bench(fn() => Pikaid::generate(), $iters);
+$us   = $time * 1000 / $iters;
+$results['Pikaid'] = ['ms' => $time, 'us' => $us];
 
-$time = bench(fn() => Pikaid::generate(), $iterations);
-printf("Pikaid (pikaid/pikaid-php):  %.2f ms (%.3f µs/op)\n", $time, $time * 1000 / $iterations);
+// UUIDv1
+$results['UUIDv1'] = ['ms' => $time = bench(fn() => Uuid::uuid1()->toString(), $iters)];
+$results['UUIDv1']['us'] = $results['UUIDv1']['ms'] * 1000 / $iters;
 
-$time = bench(fn() => Uuid::uuid1()->toString(), $iterations);
-printf("UUIDv1 (ramsey/uuid):  %.2f ms (%.3f µs/op)\n", $time, $time * 1000 / $iterations);
+// UUIDv4
+$results['UUIDv4'] = ['ms' => $time = bench(fn() => Uuid::uuid4()->toString(), $iters)];
+$results['UUIDv4']['us'] = $results['UUIDv4']['ms'] * 1000 / $iters;
 
-$time = bench(fn() => Uuid::uuid4()->toString(), $iterations);
-printf("UUIDv4 (ramsey/uuid):  %.2f ms (%.3f µs/op)\n", $time, $time * 1000 / $iterations);
+// UUIDv6
+$results['UUIDv6'] = ['ms' => $time = bench(fn() => Uuid::uuid6()->toString(), $iters)];
+$results['UUIDv6']['us'] = $results['UUIDv6']['ms'] * 1000 / $iters;
 
-$time = bench(fn() => Uuid::uuid6()->toString(), $iterations);
-printf("UUIDv6 (ramsey/uuid):  %.2f ms (%.3f µs/op)\n", $time, $time * 1000 / $iterations);
+// UUIDv7
+$results['UUIDv7'] = ['ms' => $time = bench(fn() => Uuid::uuid7()->toString(), $iters)];
+$results['UUIDv7']['us'] = $results['UUIDv7']['ms'] * 1000 / $iters;
 
-$time = bench(fn() => Uuid::uuid7()->toString(), $iterations);
-printf("UUIDv7 (ramsey/uuid):  %.2f ms (%.3f µs/op)\n", $time, $time * 1000 / $iterations);
+// ULID
+$results['ULID'] = ['ms' => $time = bench(fn() => (string) Ulid::generate(), $iters)];
+$results['ULID']['us'] = $results['ULID']['ms'] * 1000 / $iters;
 
-$time = bench(fn() => (string) Ulid::generate(), $iterations);
-printf("ULID (robinvdvleuten/ulid):    %.2f ms (%.3f µs/op)\n", $time, $time * 1000 / $iterations);
+// NanoID
+$client = new Client();
+$results['NanoID'] = ['ms' => $time = bench(fn() => $client->generateId(), $iters)];
+$results['NanoID']['us'] = $results['NanoID']['ms'] * 1000 / $iters;
 
-$nanoClient = new Client();
-$time = bench(fn() => $nanoClient->generateId(), $iterations);
-printf("NanoID (hidehalo/nanoid-php):  %.2f ms (%.3f µs/op)\n", $time, $time * 1000 / $iterations);
+// Compute ratios
+$pikaUs = $results['Pikaid']['us'];
+foreach ($results as $name => &$data) {
+  $data['ratio'] = $data['us'] / $pikaUs;
+}
+
+// Display
+echo "Benchmarking {$iters} iterations:\n\n";
+printf("%-10s %10s %10s %8s\n", 'Library', 'Total ms', 'µs/op', 'Ratio');
+echo str_repeat('-', 44) . "\n";
+foreach ($results as $name => $data) {
+  printf(
+    "%-10s %10.2f %10.3f %8.2f\n",
+    $name,
+    $data['ms'],
+    $data['us'],
+    $data['ratio']
+  );
+}
