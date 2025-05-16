@@ -2,5 +2,5 @@
   <img src="logo.png" alt="pikaid" width="300" />
 </p>
 
-# Pikaid Specifications
+# Pikaid
 To come
