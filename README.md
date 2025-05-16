@@ -85,4 +85,4 @@ Throws `InvalidArgumentException` if the format is invalid.
 
 ## License
 
-Pikaid is released under the MIT License.
+Pikaid is released under the MIT License. 
