@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit bootstrap="vendor/autoload.php" colors="true" verbose="true" stopOnFailure="false">
+<phpunit
+  bootstrap="vendor/autoload.php"
+  colors="true"
+  stopOnFailure="false"
+  testdox="false"
+  displayDetailsOnTestsThatTriggerDeprecations="true"
+  displayDetailsOnPhpunitDeprecations="true"
+  displayDetailsOnTestsThatTriggerErrors="true"
+  displayDetailsOnTestsThatTriggerNotices="true"
+  displayDetailsOnTestsThatTriggerWarnings="true"
+  >
   <testsuites>
     <testsuite name="Pikaid Test Suite">
       <directory>tests</directory>

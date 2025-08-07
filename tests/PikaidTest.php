@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace Pikaid\Tests;
 
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Pikaid\Pikaid;
 use DateTimeImmutable;
 use InvalidArgumentException;
 
 final class PikaidTest extends TestCase
 {
-  /**
-   * @dataProvider invalidIdProvider
-   */
+  #[DataProvider('invalidIdProvider')]
   public function testIsValidRejectsInvalidIds(string $invalid): void
   {
     $this->assertFalse(
@@ -64,9 +63,7 @@ final class PikaidTest extends TestCase
     );
   }
 
-  /**
-   * @dataProvider knownTimestampProvider
-   */
+  #[DataProvider('knownTimestampProvider')]
   public function testParseKnownTimestamps(
     int $seconds,
     string $rand36,
