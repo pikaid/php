@@ -15,6 +15,9 @@ class Pikaid
   private const TS_LENGTH = 7;
   private const RAND_LENGTH = 19;
   private const RAND_BYTES = 12;
+  private static ?bool $hasGmp = null;
+  private static ?bool $hasBcmath = null;
+
 
   /**
    * Generate a new pikaid (26 lowercase Base36 chars).
@@ -73,18 +76,26 @@ class Pikaid
     ];
   }
 
+  private static function initExtensions(): void
+  {
+    if (self::$hasGmp === null) {
+      self::$hasGmp = extension_loaded('gmp');
+      self::$hasBcmath = extension_loaded('bcmath');
+    }
+  }
+
   /**
    * Convert binary string to Base36, using GMP or BCMath as fallback.
    */
   private static function toBase36(string $bytes): string
   {
-    if (extension_loaded('gmp')) {
+    self::initExtensions();
+    if (self::$hasGmp) {
       $num = gmp_import($bytes, 1, GMP_BIG_ENDIAN);
       return gmp_strval($num, 36);
     }
-
-    if (!extension_loaded('bcmath')) {
-      throw new RuntimeException('Either GMP or BCMath extension is required');
+    if (!self::$hasBcmath) {
+      throw new RuntimeException('Require GMP or BCMath');
     }
 
     // Fallback: hex → decimal (BCMath) → Base36
@@ -111,14 +122,14 @@ class Pikaid
    */
   private static function fromBase36(string $str): string
   {
-    if (extension_loaded('gmp')) {
+    self::initExtensions();
+    if (self::$hasGmp) {
       $num = gmp_init($str, 36);
       $bytes = gmp_export($num, 1, GMP_BIG_ENDIAN);
       return str_pad($bytes, self::RAND_BYTES, "\0", STR_PAD_LEFT);
     }
-
-    if (!extension_loaded('bcmath')) {
-      throw new RuntimeException('Either GMP or BCMath extension is required');
+    if (!self::$hasBcmath) {
+      throw new RuntimeException('Require GMP or BCMath');
     }
 
     // Base36 → decimal
