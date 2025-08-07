@@ -17,7 +17,9 @@ class Pikaid
   private const RAND_BYTES = 12;
   private static ?bool $hasGmp = null;
   private static ?bool $hasBcmath = null;
-
+  private static ?DateTimeZone $utcZone = null;
+  private const ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz';
+  private static array $alphabetMap = [];
 
   /**
    * Generate a new pikaid (26 lowercase Base36 chars).
@@ -46,6 +48,11 @@ class Pikaid
       && preg_match('/^[0-9a-z]{26}$/', $id) === 1;
   }
 
+  private static function getUtcZone(): DateTimeZone
+  {
+    return self::$utcZone ??= new DateTimeZone('UTC');
+  }
+
   /**
    * Parse a pikaid into timestamp and randomness.
    *
@@ -63,8 +70,8 @@ class Pikaid
 
     // --- Decode timestamp (Base36 → seconds → DateTimeImmutable) ---
     $seconds = (int) base_convert($tsPart, 36, 10);
-    $date = new DateTimeImmutable("@{$seconds}");
-    $date = $date->setTimezone(new DateTimeZone('UTC'));
+    $date = (new DateTimeImmutable("@{$seconds}"))
+      ->setTimezone(self::getUtcZone());
 
     // --- Decode randomness to hex string ---
     $bytes = self::fromBase36($randPart);
@@ -85,6 +92,44 @@ class Pikaid
   }
 
   /**
+   * Divide a hex string by an integer divisor.
+   *
+   * @param string $hex       Hex string (no “0x”, lowercase or uppercase)
+   * @param int    $divisor   Integer divisor (e.g. 36)
+   * @return array{0:string,1:int}  [quotientHex, remainder]
+   */
+  private static function bcHexDivMod(string $hex, int $divisor): array
+  {
+    // Remove leading zeros
+    $hex = ltrim($hex, '0');
+    if ($hex === '') {
+      return ['0', 0];
+    }
+
+    $quotient = '';
+    $remainder = 0;
+
+    for ($i = 0, $len = strlen($hex); $i < $len; $i++) {
+      // Multiply previous remainder by 16 and add current hex digit
+      $remainder = ($remainder << 4) + hexdec($hex[$i]);
+
+      // Compute quotient digit and new remainder
+      $qDigit = intdiv($remainder, $divisor);
+      $remainder = $remainder % $divisor;
+
+      // Append hex digit of the partial quotient
+      $quotient .= dechex($qDigit);
+    }
+
+    // Strip leading zeros from quotient, ensure at least "0"
+    $quotient = ltrim($quotient, '0');
+    if ($quotient === '') {
+      $quotient = '0';
+    }
+    return [$quotient, $remainder];
+  }
+
+  /**
    * Convert binary string to Base36, using GMP or BCMath as fallback.
    */
   private static function toBase36(string $bytes): string
@@ -97,23 +142,13 @@ class Pikaid
     if (!self::$hasBcmath) {
       throw new RuntimeException('Require GMP or BCMath');
     }
-
-    // Fallback: hex → decimal (BCMath) → Base36
+    // Fallback BCMath optimized: hex‐string division
     $hex = bin2hex($bytes);
-    $dec = '0';
-
-    foreach (str_split($hex, 1) as $digit) {
-      $dec = bcmul($dec, '16', 0);
-      $dec = bcadd($dec, (string) hexdec($digit), 0);
-    }
-
     $out = '';
-    while (bccomp($dec, '0', 0) === 1) {
-      $mod = bcmod($dec, '36');
-      $out = self::digit((int) $mod) . $out;
-      $dec = bcdiv($dec, '36', 0);
+    while ($hex !== '' && $hex !== '0') {
+      [$hex, $mod] = self::bcHexDivMod($hex, 36);
+      $out = self::digit($mod) . $out;
     }
-
     return $out;
   }
 
@@ -151,14 +186,19 @@ class Pikaid
     return hex2bin($hex) ?: str_repeat("\0", self::RAND_BYTES);
   }
 
+  private static function initAlphabet(): void
+  {
+    if (empty(self::$alphabetMap)) {
+      self::$alphabetMap = array_flip(str_split(self::ALPHABET));
+    }
+  }
+
   /**
    * Map integer to Base36 digit (0–9, a–z).
    */
   private static function digit(int $value): string
   {
-    return $value < 10
-      ? (string) $value
-      : chr(97 + $value - 10);
+    return self::ALPHABET[$value];
   }
 
   /**
@@ -166,9 +206,7 @@ class Pikaid
    */
   private static function value(string $char): int
   {
-    $code = ord($char);
-    return $code < 58
-      ? $code - 48
-      : $code - 87;
+    self::initAlphabet();
+    return self::$alphabetMap[$char];
   }
 }
